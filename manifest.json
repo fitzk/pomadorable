@@ -1,0 +1,9 @@
+{
+  "action": {
+    "default_popup": "index.html"
+  },
+  "description": "Pomodoro for you",
+  "manifest_version": 3,
+  "name": "Yo Pomodoro",
+  "version": "1.0"
+}
