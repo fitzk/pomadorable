@@ -1,13 +1,13 @@
+import "@assets/index.css";
 import React from "react";
-import "./App.css";
 
-const INTERVAL_DEFAULT_WORK = 15;
+const INTERVAL_DEFAULT_WORK = 5;
 const INTERVAL_DEFAULT_REST = 5;
 
 const INTERVAL_TYPE_WORK = "work";
 const INTERVAL_TYPE_REST = "rest";
 
-function App() {
+function Popup() {
   const [showSettings, setShowSettings] = React.useState(false);
   const [themeDark, setThemeDark] = React.useState(false);
   const [intervalRemainderSecs, setIntervalRemainderSecs] = React.useState(INTERVAL_DEFAULT_WORK);
@@ -23,7 +23,6 @@ function App() {
       return () => {
         clearInterval(intervalId);
         if (intervalRemainderSecs === 0) {
-          alert("done");
           if (intervalType === INTERVAL_TYPE_WORK) {
             setIntervalType(INTERVAL_TYPE_REST);
             setIntervalRemainderSecs(INTERVAL_DEFAULT_REST);
@@ -46,7 +45,7 @@ function App() {
       <div className="grid grid-cols-2 gap-2">
         <button onClick={() => setRunning(true)}>start</button>
         <button
-          onClick={() => {
+          onClick={async () => {
             setRunning(false);
             setIntervalRemainderSecs(INTERVAL_DEFAULT_WORK);
             setInterval(INTERVAL_TYPE_WORK);
@@ -87,4 +86,4 @@ function App() {
   );
 }
 
-export default App;
+export default Popup;
