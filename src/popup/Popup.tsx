@@ -72,6 +72,7 @@ function Popup() {
       }
       if (value["running"]) {
         setRunning(value["running"]);
+        // let workDurSecs = workMins * 60;
       }
     });
   }
@@ -117,6 +118,10 @@ function Popup() {
           onClick={() => {
             setRunning(true);
             chrome.storage.local.set({ running: true });
+            chrome.alarms.create("work-alarm", { when: Date.now() }, () => {
+              console.log("rest-alarm created in popup");
+              chrome.action.setBadgeText({ text: "work start" });
+            });
           }}
         >
           start
@@ -132,6 +137,7 @@ function Popup() {
                 remainder: value["work-period"],
                 running: false,
               });
+              chrome.alarms.clearAll();
             });
           }}
         >

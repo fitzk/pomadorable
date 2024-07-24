@@ -40,14 +40,6 @@
 //   }
 // });
 
-// chrome.alarms.onAlarm.addListener(() => {
-//   chrome.storage.local.get(["period"]).then((result) => {
-//     chrome.action.setBadgeText({
-//       text: result.period,
-//     });
-//   });
-// });
-
 // async function checkAlarmState() {
 //   const { alarm, remainder } = await chrome.storage.local.get(["alarm", "remainder"]);
 
@@ -63,3 +55,36 @@
 // chrome.storage.local.get(["rest-period", "work-period", "remainder", "period", "alarm", "running"]).then((result) => {
 //   console.log("storage from sw", result);
 // });
+
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  console.log("current alarm: ", alarm);
+  if (alarm.name === "work-alarm") {
+    chrome.alarms.clear("work-alarm");
+    const result = await chrome.storage.local.get(["rest-period", "period"]);
+    console.log("next alarm: ", Date.now() + result["rest-period"] * 1000);
+    chrome.action.setBadgeText({
+      text: "rest",
+    });
+    chrome.action.setBadgeBackgroundColor({
+      color: "green",
+    });
+
+    chrome.alarms.create("rest-alarm", { when: Date.now() + result["rest-period"] * 1000 }, () => {
+      console.log("rest-alarm created");
+    });
+  } else if (alarm.name === "rest-alarm") {
+    chrome.alarms.clear("rest-alarm");
+    const result = await chrome.storage.local.get(["work-period", "period"]);
+    console.log("next alarm: ", Date.now() + result["work-period"] * 1000);
+    chrome.action.setBadgeText({
+      text: "work",
+    });
+    chrome.action.setBadgeBackgroundColor({
+      color: "red",
+    });
+
+    chrome.alarms.create("work-alarm", { when: Date.now() + result["work-period"] * 1000 }, () => {
+      console.log("work-alarm created");
+    });
+  }
+});
