@@ -9,13 +9,16 @@
   "content_scripts": [
     {
       "js": ["src/content/index.tsx"],
-      "matches": ["http://*/*", "https://*/*", "<all_urls>"]
+      "matches": ["<all_urls>"]
     }
   ],
   "description": "Pomodoro for you",
   "devtools_page": "src/devtools/index.html",
+  "icons": {
+    "128": "src/_assets/icon128.png"
+  },
   "manifest_version": 3,
   "name": "Yo Pomodoro",
-  "permissions": ["scripting", "activeTab", "notifications"],
+  "permissions": ["scripting", "activeTab", "notifications", "storage", "alarms"],
   "version": "1.0"
 }

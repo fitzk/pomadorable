@@ -5,6 +5,7 @@ export default {
   plugins: [],
   theme: {
     container: {
+      center: true,
       padding: {
         "2xl": "6rem",
         DEFAULT: "1rem",
