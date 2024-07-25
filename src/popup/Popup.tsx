@@ -1,11 +1,6 @@
 import "@assets/index.css";
 import React from "react";
 
-const PERIOD_NAME_WORK = "work-period";
-const PERIOD_DEFAULT_WORK = 60;
-const PERIOD_NAME_REST = "rest-period";
-const PERIOD_DEFAULT_REST = 60;
-
 function SettingsPeriodInput({
   label,
   onBlur,
@@ -20,9 +15,10 @@ function SettingsPeriodInput({
   return (
     <div className="grid grid-cols-2 gap-1">
       <label>{label}</label>
-      <div className="flex">
+      <div className="flex flex-row items-center">
         <input
-          className="outline w-10"
+          className="caret-pink-500 text-end w-10 rounded-sm m-1 text-sm font-medium text-gray-900 dark:text-white outline-1 outline"
+          max="60"
           min="1"
           onBlur={(e) => onBlur(parseFloat(e.currentTarget.value))}
           onChange={(e) => onChange(parseFloat(e.currentTarget.value))}
@@ -36,144 +32,143 @@ function SettingsPeriodInput({
 }
 
 function Popup() {
-  const [showSettings, setShowSettings] = React.useState(false);
-
   // Timer values are in (minutes)
-  const [workMins, setWorkMins] = React.useState(PERIOD_DEFAULT_WORK / 60);
-  const [restMins, setRestMins] = React.useState(PERIOD_DEFAULT_REST / 60);
+  const [workMins, setWorkMins] = React.useState(3);
+  const [restMins, setRestMins] = React.useState(2);
 
   const [themeDark, setThemeDark] = React.useState(false);
 
-  const [remainderSecs, setRemainderSecs] = React.useState(PERIOD_DEFAULT_WORK);
-  const [period, setPeriod] = React.useState(PERIOD_NAME_WORK);
-  const [running, setRunning] = React.useState(false);
   const [init, setInit] = React.useState(true);
+  const [period, setPeriod] = React.useState("work");
+  const [remainder, setRemainder] = React.useState<number>();
+  const [running, setRunning] = React.useState(false);
+  const [intervalId, setIntervalId] = React.useState<number>();
 
-  function logChromeStorage() {
-    chrome.storage.local.get(["rest-period", "work-period", "remainder", "period"]).then((value) => {
-      console.log("saved storage: ", JSON.stringify(value));
-    });
-  }
-
-  function setFromStorage() {
-    chrome.storage.local.get(["rest-period", "work-period", "remainder", "period", "running"]).then((value) => {
-      if (value["work-period"]) {
-        setRemainderSecs(value["work-period"]);
-        setWorkMins(value["work-period"] / 60);
+  function updateStateOnStorageChange<T>(
+    change: chrome.storage.StorageChange,
+    callback: React.Dispatch<React.SetStateAction<T>>,
+  ) {
+    if (change && Object.keys(change).length > 0) {
+      if (!change.oldValue || change.newValue !== change.oldValue) {
+        callback(change.newValue);
       }
-      if (value["rest-period"]) {
-        setRestMins(value["rest-period"] / 60);
-      }
-      if (value["remainder"]) {
-        setRemainderSecs(value["remainder"]);
-      }
-      if (value["period"]) {
-        setPeriod(value["period"]);
-      }
-      if (value["running"]) {
-        setRunning(value["running"]);
-        // let workDurSecs = workMins * 60;
-      }
-    });
+    }
   }
 
   React.useEffect(() => {
     if (init) {
-      setFromStorage();
+      chrome.runtime.sendMessage({ action: "init" });
+
+      chrome.storage.local.get(["work", "period", "rest", "running", "scheduledAlarm"]).then((results) => {
+        setPeriod(results.period);
+        setWorkMins(results.work);
+        setRestMins(results.rest);
+        setRunning(results.running);
+      });
+
+      chrome.storage.local.onChanged.addListener((changed) => {
+        if (changed) {
+          updateStateOnStorageChange(changed["period"], setPeriod);
+          // if (changed["period"] && intervalId) {
+          //   clearInterval(intervalId);
+          // }
+          updateStateOnStorageChange(changed["work"], setWorkMins);
+          updateStateOnStorageChange(changed["rest"], setRestMins);
+          updateStateOnStorageChange(changed["running"], setRunning);
+        }
+      });
       setInit(false);
     }
 
-    if (running) {
-      const intervalId = setInterval(() => {
-        setRemainderSecs(remainderSecs - 1);
-      }, 1000);
+    chrome.storage.local.get(["scheduledAlarm"]).then((result) => {
+      const _intervalId = setInterval(() => {
+        let remainder = result.scheduledAlarm - Date.now();
+        if (remainder >= 0) {
+          setRemainder(remainder);
+        } else {
+          setRemainder(0);
+          clearInterval(_intervalId);
+        }
+      }, 500);
+
+      if (running) {
+        setIntervalId(_intervalId);
+      } else {
+        clearInterval(_intervalId);
+        clearInterval(intervalId);
+        setIntervalId(undefined);
+      }
 
       return () => {
         clearInterval(intervalId);
-        if (remainderSecs === 0) {
-          if (period === PERIOD_NAME_WORK) {
-            setPeriod(PERIOD_NAME_REST);
-            setRemainderSecs(restMins * 60);
-            chrome.storage.local.set({ period: PERIOD_NAME_REST, remainder: restMins * 60 });
-          } else {
-            setPeriod(PERIOD_NAME_WORK);
-            setRemainderSecs(workMins * 60);
-            chrome.storage.local.set({ period: PERIOD_NAME_WORK, remainder: workMins * 60 });
-          }
-        }
-        chrome.storage.local.set({ period, remainder: remainderSecs });
       };
-    }
-  }, [remainderSecs, period, running, workMins, restMins]);
+    });
+  }, [running, period]);
+
+  const seconds = remainder ? (Math.floor((remainder / 1000) % 60) + "").padStart(2, "0") : "--";
+  let minutes = remainder ? (Math.floor(remainder / 1000 / 60) + "").padStart(2, "0") : "--";
 
   return (
     <div
       className={`${themeDark ? "dark " : ""}container w-60 h-80 pt-4 px-4 bg-light dark:bg-slate-900 text-slate-600 dark:text-slate-300`}
     >
       <h1>Pomadoroble</h1>
-      <p>{period.slice(0, 4).toLocaleUpperCase()}</p>
-      <div>{remainderSecs}</div>
+      <div className="flex flex-col items-center">
+        <h2 className="">{period.slice(0, 4).toLocaleUpperCase()}</h2>
+        <div className="text-2xl">{minutes + ":" + seconds}</div>
+      </div>
       <div className="grid grid-cols-2 gap-2">
         <button
-          onClick={() => {
-            setRunning(true);
-            chrome.storage.local.set({ running: true });
-            chrome.alarms.create("work-alarm", { when: Date.now() }, () => {
-              console.log("rest-alarm created in popup");
-              chrome.action.setBadgeText({ text: "work start" });
-            });
+          disabled={running}
+          onClick={async () => {
+            if (!running) {
+              await chrome.runtime.sendMessage({ action: "alarm-start" });
+            }
           }}
         >
           start
         </button>
         <button
-          onClick={() => {
-            chrome.storage.local.get(["work-period"]).then((value) => {
-              setRunning(false);
-              setRemainderSecs(value["work-period"]);
-              setPeriod("work-period");
-              chrome.storage.local.set({
-                period,
-                remainder: value["work-period"],
-                running: false,
-              });
-              chrome.alarms.clearAll();
-            });
+          onClick={async () => {
+            await chrome.runtime.sendMessage({ action: "alarm-clear" });
+            if (period === "work") {
+              setRemainder(workMins * 60 * 1000);
+            } else if (period === "rest") {
+              setRemainder(restMins * 60 * 1000);
+            }
           }}
         >
           reset
         </button>
       </div>
       <div className="mb-5"></div>
-      <>
-        <button onClick={() => setShowSettings(!showSettings)}>settings</button>
-        {showSettings && (
-          <div>
-            <SettingsPeriodInput
-              label="Work Period"
-              onBlur={async (mins) => {
-                setWorkMins(mins);
-                setRemainderSecs(mins * 60);
-                await chrome.storage.local.set({ "work-period": mins * 60 });
-                logChromeStorage();
-              }}
-              onChange={setWorkMins}
-              value={workMins}
-            />
-            <SettingsPeriodInput
-              label="Rest Period"
-              onBlur={async (mins) => {
-                setWorkMins(mins);
-                setRemainderSecs(mins * 60);
-                await chrome.storage.local.set({ "rest-period": mins * 60 });
-                logChromeStorage();
-              }}
-              onChange={setRestMins}
-              value={restMins}
-            />
-          </div>
-        )}
-      </>
+      <div>
+        <SettingsPeriodInput
+          label="Work Period"
+          onBlur={async (mins) => {
+            await chrome.runtime.sendMessage({ action: "work-duration-set", data: mins });
+            if (period === "work") {
+              await chrome.runtime.sendMessage({ action: "clear-alarm" });
+              setRemainder(mins * 60 * 1000);
+            }
+          }}
+          onChange={setWorkMins}
+          value={workMins}
+        />
+        <SettingsPeriodInput
+          label="Rest Period"
+          onBlur={async (mins) => {
+            await chrome.runtime.sendMessage({ action: "rest-duration-set", data: mins });
+            if (period === "rest") {
+              await chrome.runtime.sendMessage({ action: "clear-alarm" });
+              setRemainder(mins * 60 * 1000);
+            }
+          }}
+          onChange={setRestMins}
+          value={restMins}
+        />
+      </div>
+
       <button className="outline" onClick={() => setThemeDark(!themeDark)}>
         {themeDark ? "dark" : "light"}
       </button>

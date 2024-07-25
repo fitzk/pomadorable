@@ -1,90 +1,120 @@
-// chrome.storage.local.set({ interval_remainder_secs: 10 }).then(() => {
-//   console.log("set remainder");
-// });
+async function updateBadge() {
+  chrome.storage.local.get(["running", "period"]).then(async (result) => {
+    if (result.running) {
+      await Promise.all([
+        chrome.action.setBadgeText({
+          text: result.period,
+        }),
+        chrome.action.setBadgeTextColor({
+          color: "white",
+        }),
+        chrome.action.setBadgeBackgroundColor({
+          color: result.period === "work" ? "red" : "green",
+        }),
+      ]);
+    }
+  });
+}
 
-// chrome.storage.local.get(["interval_remainder_secs"]).then((result) => {
-//   console.log("Timer remainder is " + JSON.stringify(result));
-// });
-
-// // Example of a simple user data object
-// const user = {
-//   username: "demo-user",
-// };
-
-// chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-//   // 2. A page requested user data, respond with a copy of `user`
-//   if (message === "get-user-data") {
-//     console.log(sender);
-//     sendResponse(user);
-//   }
-// });
-
-// const result = chrome.storage.local.get(["interval_remainder_secs"]).then((value) => value);
-
-// chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
-//   // 2. A page requested user data, respond with a copy of `user`
-//   if (message === "get-timer") {
-//     console.log(sender);
-//     sendResponse(result);
-//   }
-// });
-
-// chrome.storage.local.get(["remainder", "alarm"]).then((result) => {
-//   chrome.storage.local.set({ alarm: true });
-//   chrome.alarms.create("alarm", { when: Date.now() + result.remainder * 1000 }).then();
-// });
-
-// chrome.storage.local.onChanged.addListener((changes) => {
-//   if (!changes.running) {
-//     chrome.alarms.clearAll();
-//   }
-// });
-
-// async function checkAlarmState() {
-//   const { alarm, remainder } = await chrome.storage.local.get(["alarm", "remainder"]);
-
-//   if (alarm) {
-//     await chrome.alarms.get("alarm");
-//   } else {
-//     chrome.alarms.create("alarm", { when: Date.now() + remainder * 1000 }).then();
-//   }
-// }
-
-// checkAlarmState();
-
-// chrome.storage.local.get(["rest-period", "work-period", "remainder", "period", "alarm", "running"]).then((result) => {
-//   console.log("storage from sw", result);
-// });
-
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-  console.log("current alarm: ", alarm);
-  if (alarm.name === "work-alarm") {
-    chrome.alarms.clear("work-alarm");
-    const result = await chrome.storage.local.get(["rest-period", "period"]);
-    console.log("next alarm: ", Date.now() + result["rest-period"] * 1000);
+async function clearBadge() {
+  await Promise.all([
     chrome.action.setBadgeText({
-      text: "rest",
-    });
+      text: "",
+    }),
     chrome.action.setBadgeBackgroundColor({
-      color: "green",
-    });
+      color: "transparent",
+    }),
+  ]);
+}
 
-    chrome.alarms.create("rest-alarm", { when: Date.now() + result["rest-period"] * 1000 }, () => {
-      console.log("rest-alarm created");
-    });
-  } else if (alarm.name === "rest-alarm") {
-    chrome.alarms.clear("rest-alarm");
-    const result = await chrome.storage.local.get(["work-period", "period"]);
-    console.log("next alarm: ", Date.now() + result["work-period"] * 1000);
-    chrome.action.setBadgeText({
-      text: "work",
-    });
-    chrome.action.setBadgeBackgroundColor({
-      color: "red",
-    });
+chrome.runtime.onStartup.addListener(() => {
+  updateBadge();
+  chrome.storage.local.get(["scheduledAlarm", "running"]).then(async (result) => {
+    if (!result.running) {
+      chrome.storage.local.set({
+        scheduledAlarm: undefined,
+      });
+      // No alarm should be running
+      await chrome.alarms.clear("alarm");
+    } else {
+      // Alarm should be running
+      const alarm = await chrome.alarms.get("alarm");
+      if (!alarm) {
+        await chrome.alarms.create("alarm", {
+          when: result.scheduledAlarm,
+        });
+      }
+    }
+  });
+});
 
-    chrome.alarms.create("work-alarm", { when: Date.now() + result["work-period"] * 1000 }, () => {
-      console.log("work-alarm created");
-    });
+chrome.storage.local.onChanged.addListener(() => {
+  updateBadge();
+});
+
+// When alarm goes off, create new alarm for next period
+chrome.alarms.onAlarm.addListener(async (_alarm) => {
+  await chrome.alarms.clear("alarm");
+  const result = await chrome.storage.local.get(["period", "work", "rest"]);
+  let nextPeriod = result.period === "work" ? "rest" : "work";
+
+  await chrome.alarms.create("alarm", {
+    when: Date.now() + result[nextPeriod] * 60 * 1000,
+  });
+
+  const newAlarm = await chrome.alarms.get("alarm");
+
+  await chrome.storage.local.set({
+    period: nextPeriod,
+    scheduledAlarm: newAlarm.scheduledTime,
+  });
+  updateBadge();
+});
+
+chrome.runtime.onMessage.addListener(async (message, _sender, sendResponse) => {
+  updateBadge();
+  switch (message.action) {
+    case "alarm-clear": {
+      await chrome.alarms.clearAll();
+      await chrome.storage.local.set({
+        running: false,
+        scheduledAlarm: undefined,
+      });
+      clearBadge();
+      sendResponse("alarm cleared");
+      break;
+    }
+    case "alarm-start":
+      const result = await chrome.storage.local.get(["work", "rest", "period"]);
+      const period = result.period;
+
+      console.log(period);
+      await chrome.alarms.create("alarm", {
+        when: result[period] * 60 * 1000 + Date.now(),
+      });
+      const alarm = await chrome.alarms.get("alarm");
+      await chrome.storage.local.set({
+        period,
+        running: true,
+        scheduledAlarm: alarm.scheduledTime,
+      });
+      sendResponse(alarm.scheduledTime);
+      break;
+    case "rest-duration-set": {
+      await chrome.storage.local.set({
+        rest: message.data,
+        running: false,
+      });
+      sendResponse(message.data);
+      break;
+    }
+    case "work-duration-set": {
+      await chrome.storage.local.set({
+        running: false,
+        work: message.data,
+      });
+      sendResponse(message.data);
+      break;
+    }
   }
 });
