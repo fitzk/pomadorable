@@ -12,8 +12,8 @@ A simple Pomodoro timer Chrome Extension.
 ## Usage
 
 - buttons for resetting, starting, and skipping intervals
-- x icon stops the timer and closes the popup
-- - icon minimizes popup
+- "x" icon stops the timer and closes the popup
+- "-" icon minimizes popup
 
 ## Scripts
 
