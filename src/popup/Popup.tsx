@@ -352,7 +352,6 @@ function Popup() {
           }
         }, 500);
         intervalId.current = id;
-        console.log(intervalId.current);
         return () => {
           clearOldInterval();
           clearInterval(id);
