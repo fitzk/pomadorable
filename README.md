@@ -10,9 +10,9 @@ A simple Pomodoro timer Chrome Extension.
 
 ## Scripts
 
-Build for production - `npm run build`
-Lint - `npm run lint`
-Format (prettier) - `npm run format`
+- Build for production: `npm run build`
+- Lint: `npm run lint`
+- Format (prettier): `npm run format`
 
 ## Run Extension in Browser
 
