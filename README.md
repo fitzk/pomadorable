@@ -26,7 +26,9 @@ Don't forget to pin the extension once it's loaded!
 ## Main Files
 
 `src/popup/index.tsx` - default popup that opens in the toolbar when the icon is clicked
+
 `src/background/index.ts` - service worker
+
 `manifest.json` - defines extension settings
 
 ## Tooling & Dependencies
