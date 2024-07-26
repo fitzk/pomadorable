@@ -47,7 +47,7 @@ async function createAlarm(when: number, period?: string) {
     await chrome.storage.local.set(options);
     return alarm.scheduledTime;
   } catch (e) {
-    console.error("create alarm failed - ", when);
+    console.debug("create alarm failed - ", when);
   }
 }
 
@@ -61,43 +61,47 @@ async function clearAlarms() {
 
 // event handlers
 chrome.runtime.onStartup.addListener(async () => {
-  updateBadge();
+  try {
+    updateBadge();
 
-  // check storage
-  const results = await chrome.storage.local.get([
-    "scheduledAlarm",
-    "running",
-    "work",
-    "rest",
-  ]);
+    // check storage
+    const results = await chrome.storage.local.get([
+      "scheduledAlarm",
+      "running",
+      "work",
+      "rest",
+    ]);
 
-  // set defaults for work and rest durations if not already set in storage
-  const defaults: Record<string, number> = {};
-  if (!results.work) defaults["work"] = WORK_DEFAULT;
-  if (!results.rest) defaults["rest"] = REST_DEFAULT;
-  await chrome.storage.local.set(defaults);
+    // set defaults for work and rest durations if not already set in storage
+    const defaults: Record<string, number> = {};
+    if (!results.work) defaults["work"] = WORK_DEFAULT;
+    if (!results.rest) defaults["rest"] = REST_DEFAULT;
+    await chrome.storage.local.set(defaults);
 
-  // nothing scheduled & running, alarms should be cleared
-  if (!results.scheduledAlarm || !results.running) {
-    clearAlarms();
-  }
+    // nothing scheduled & running, alarms should be cleared
+    if (!results.scheduledAlarm || !results.running) {
+      clearAlarms();
+    }
 
-  if (results.running) {
-    // if running alarm should exist
-    const alarm = await chrome.alarms.get("alarm");
+    if (results.running) {
+      // if running alarm should exist
+      const alarm = await chrome.alarms.get("alarm");
 
-    // if alarm doesnt exist but schedule exists
-    if (!alarm) {
-      // if stored alarm is in the future, create the alarm
-      if (results.scheduledAlarm) {
-        const storedAlarmValid = results.scheduledAlarm > Date.now();
-        if (storedAlarmValid) {
-          createAlarm(results.scheduledAlarm);
+      // if alarm doesnt exist but schedule exists
+      if (!alarm) {
+        // if stored alarm is in the future, create the alarm
+        if (results.scheduledAlarm) {
+          const storedAlarmValid = results.scheduledAlarm > Date.now();
+          if (storedAlarmValid) {
+            createAlarm(results.scheduledAlarm);
+          }
+        } else {
+          createAlarm(WORK_DEFAULT * 60 * 1000 + Date.now(), "work");
         }
-      } else {
-        createAlarm(WORK_DEFAULT * 60 * 1000 + Date.now(), "work");
       }
     }
+  } catch (e) {
+    console.debug("error in onStartup event handler", e);
   }
 });
 
@@ -124,7 +128,7 @@ chrome.alarms.onAlarm.addListener(async () => {
 
     updateBadge();
   } catch (e) {
-    console.error("error in onAlarm handler", e);
+    console.debug("error in onAlarm handler", e);
   }
 });
 
@@ -153,17 +157,34 @@ chrome.runtime.onMessage.addListener(async (message, _sender, sendResponse) => {
         if (period === "rest") {
           createAlarm(results.rest * 60 * 1000 + Date.now(), "rest");
         }
-        chrome.storage.local.set({ running: false });
+        await chrome.storage.local.set({ running: false });
         sendResponse("alarm reset");
         break;
       }
       case "alarm-start": {
-        const results = await chrome.storage.local.get([
+        let results = await chrome.storage.local.get([
           "scheduledAlarm",
           "period",
           "work",
           "rest",
         ]);
+        // storage is empty - this really only happens if you clear chromes storage
+        // from the console but jic it happens, we will handle this scenario
+        if (Object.keys.length === 0) {
+          await chrome.storage.local.set({
+            period: "work",
+            rest: REST_DEFAULT,
+            running: false,
+            work: WORK_DEFAULT,
+          });
+          // update results
+          results = await chrome.storage.local.get([
+            "scheduledAlarm",
+            "period",
+            "work",
+            "rest",
+          ]);
+        }
         const period = results.period || "work";
         if (results.scheduledAlarm) {
           createAlarm(results.scheduledAlarm, period);
@@ -250,6 +271,6 @@ chrome.runtime.onMessage.addListener(async (message, _sender, sendResponse) => {
       }
     }
   } catch (e) {
-    console.error("error in onMessage handler", e);
+    console.debug("error in onMessage handler", e);
   }
 });

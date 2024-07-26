@@ -47,7 +47,7 @@ function MoonIcon() {
       className="size-6"
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.5}
+      strokeWidth={2}
       viewBox="0 0 24 24"
       xmlns="http://www.w3.org/2000/svg"
     >
@@ -66,7 +66,7 @@ function SunIcon() {
       className="size-6"
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.5}
+      strokeWidth={2}
       viewBox="0 0 24 24"
       xmlns="http://www.w3.org/2000/svg"
     >
@@ -127,7 +127,7 @@ function FastforwardIcon() {
   );
 }
 
-// small
+// mini
 function TimerIcon() {
   return (
     <svg
@@ -174,12 +174,12 @@ function PlusIcon() {
 function CloseIcon() {
   return (
     <svg
-      className="size-5"
+      className="size-4"
       fill="currentColor"
-      viewBox="0 0 20 20"
+      viewBox="0 0 16 16"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+      <path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
     </svg>
   );
 }
@@ -289,6 +289,16 @@ function Popup() {
   const [remainder, setRemainder] = React.useState<number>();
   const [running, setRunning] = React.useState(false);
 
+  // interval id ref to clear whenever alarms are changed make sure countdown
+  // behaves correctly
+  const intervalId = React.useRef<number>();
+
+  function clearOldInterval() {
+    if (intervalId.current) {
+      clearInterval(intervalId.current);
+      intervalId.current = undefined;
+    }
+  }
   // fn updates component state when change on storage state change
   function updateStateOnStorageChange<T>(
     change: chrome.storage.StorageChange,
@@ -309,14 +319,12 @@ function Popup() {
       chrome.storage.local
         .get(["work", "period", "rest", "running", "themeDark"])
         .then((results) => {
-          console.log("in init", results);
           if (results.period) setPeriod(results.period ?? "work");
           if (results.work) setWorkMins(results.work);
           if (results.rest) setRestMins(results.rest);
           if (results.running) setRunning(results.running);
           if (results.themeDark) setThemeDark(results.themeDark);
         });
-
       // update state and settings when storage values are updated
       chrome.storage.local.onChanged.addListener((changed) => {
         if (changed) {
@@ -333,6 +341,7 @@ function Popup() {
     // drives the display countdown in the UI, actual alarms
     // are handled in the service-worker
     chrome.storage.local.get(["scheduledAlarm"]).then((result) => {
+      if (intervalId.current) console.log(intervalId.current);
       const id = setInterval(() => {
         const remainder = result.scheduledAlarm - Date.now();
         if (remainder >= 0) {
@@ -342,12 +351,14 @@ function Popup() {
           clearInterval(id);
         }
       }, 500);
+      intervalId.current = id;
 
       if (!running) {
+        clearOldInterval();
         clearInterval(id);
       }
-
       return () => {
+        clearOldInterval();
         clearInterval(id);
       };
     });
@@ -413,6 +424,7 @@ function Popup() {
       <div className="gap-1 grid grid-cols-3 mt-4 mb-4">
         <ControlButton
           onClick={async () => {
+            clearOldInterval();
             await chrome.runtime.sendMessage({ action: "alarm-clear" });
             await chrome.runtime.sendMessage({ action: "alarm-reset" });
           }}
@@ -431,6 +443,7 @@ function Popup() {
         </ControlButton>
         <ControlButton
           onClick={async () => {
+            clearOldInterval();
             await chrome.runtime.sendMessage({ action: "alarm-clear" });
             await chrome.runtime.sendMessage({ action: "skip" });
           }}
@@ -447,6 +460,7 @@ function Popup() {
               action: "duration-set-work",
               data: mins,
             });
+            if (period === "work") clearOldInterval();
           }}
           value={workMins}
         />
@@ -458,6 +472,7 @@ function Popup() {
               action: "duration-set-rest",
               data: mins,
             });
+            if (period === "rest") clearOldInterval();
           }}
           value={restMins}
         />

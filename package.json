@@ -28,7 +28,7 @@
   "private": true,
   "scripts": {
     "build": "tsc -b && vite build",
-    "format": "prettier --loglevel warn --write \"src/**/*.{tsx,ts}\"",
+    "format": "prettier --write \"src/**/*.{tsx,ts}\"",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "type": "module",
