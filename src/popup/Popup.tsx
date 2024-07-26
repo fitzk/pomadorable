@@ -299,7 +299,8 @@ function Popup() {
       intervalId.current = undefined;
     }
   }
-  // fn updates component state when change on storage state change
+  // fn updates component state on storage state change so the UI is always in sync
+  // with data stored via Chrome.storage.local
   function updateStateOnStorageChange<T>(
     change: chrome.storage.StorageChange,
     callback: React.Dispatch<React.SetStateAction<T>>,
@@ -338,33 +339,29 @@ function Popup() {
       setInit(false);
     }
 
-    // drives the display countdown in the UI, actual alarms
-    // are handled in the service-worker
-    chrome.storage.local.get(["scheduledAlarm"]).then((result) => {
-      if (intervalId.current) console.log(intervalId.current);
-      const id = setInterval(() => {
-        const remainder = result.scheduledAlarm - Date.now();
-        if (remainder >= 0) {
-          setRemainder(remainder);
-        } else {
-          setRemainder(0);
+    if (running) {
+      // drives the display countdown in the UI, persisting alarms are managed by the service-worker
+      chrome.storage.local.get(["scheduledAlarm"]).then((result) => {
+        const id = setInterval(() => {
+          const remainder = result.scheduledAlarm - Date.now();
+          if (remainder >= 0) {
+            setRemainder(remainder);
+          } else {
+            setRemainder(0);
+            clearInterval(id);
+          }
+        }, 500);
+        intervalId.current = id;
+        console.log(intervalId.current);
+        return () => {
+          clearOldInterval();
           clearInterval(id);
-        }
-      }, 500);
-      intervalId.current = id;
-
-      if (!running) {
-        clearOldInterval();
-        clearInterval(id);
-      }
-      return () => {
-        clearOldInterval();
-        clearInterval(id);
-      };
-    });
+        };
+      });
+    }
   }, [running, period, init]);
 
-  // format display countdown as "mm:ss" or "--:--"" when no remainder is set
+  // format display countdown as "mm:ss" or "--:--" when no remainder is set
   const seconds = remainder
     ? (Math.floor((remainder / 1000) % 60) + "").padStart(2, "0")
     : "--";
@@ -393,7 +390,6 @@ function Popup() {
             onClick={async () => {
               await chrome.runtime.sendMessage({ action: "alarm-clear" });
               await chrome.runtime.sendMessage({ action: "badge-clear" });
-
               window.close();
             }}
           >

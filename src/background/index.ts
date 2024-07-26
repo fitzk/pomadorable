@@ -1,7 +1,6 @@
 const WORK_DEFAULT = 25;
 const REST_DEFAULT = 5;
 
-// fns
 async function updateBadge() {
   chrome.storage.local.get(["running", "period"]).then(async (results) => {
     if (results.running) {
@@ -31,6 +30,11 @@ async function clearBadge() {
   ]);
 }
 
+function minsToEpochMs(mins: number) {
+  return mins * 60 * 1000 + Date.now();
+}
+
+// when should be time since epoch in ms
 async function createAlarm(when: number, period?: string) {
   try {
     await chrome.alarms.create("alarm", {
@@ -47,7 +51,7 @@ async function createAlarm(when: number, period?: string) {
     await chrome.storage.local.set(options);
     return alarm.scheduledTime;
   } catch (e) {
-    console.debug("create alarm failed - ", when);
+    console.error("create alarm failed - ", when);
   }
 }
 
@@ -63,15 +67,12 @@ async function clearAlarms() {
 chrome.runtime.onStartup.addListener(async () => {
   try {
     updateBadge();
-
-    // check storage
     const results = await chrome.storage.local.get([
       "scheduledAlarm",
       "running",
       "work",
       "rest",
     ]);
-
     // set defaults for work and rest durations if not already set in storage
     const defaults: Record<string, number> = {};
     if (!results.work) defaults["work"] = WORK_DEFAULT;
@@ -86,8 +87,7 @@ chrome.runtime.onStartup.addListener(async () => {
     if (results.running) {
       // if running alarm should exist
       const alarm = await chrome.alarms.get("alarm");
-
-      // if alarm doesnt exist but schedule exists
+      // if alarm doesn't exist but schedule exists
       if (!alarm) {
         // if stored alarm is in the future, create the alarm
         if (results.scheduledAlarm) {
@@ -96,7 +96,8 @@ chrome.runtime.onStartup.addListener(async () => {
             createAlarm(results.scheduledAlarm);
           }
         } else {
-          createAlarm(WORK_DEFAULT * 60 * 1000 + Date.now(), "work");
+          const when = minsToEpochMs(WORK_DEFAULT);
+          createAlarm(when, "work");
         }
       }
     }
@@ -109,7 +110,7 @@ chrome.storage.local.onChanged.addListener(() => {
   updateBadge();
 });
 
-// When alarm goes off, create new alarm for next period
+// when alarm goes off, create new alarm for next period
 chrome.alarms.onAlarm.addListener(async () => {
   try {
     clearAlarms();
@@ -120,15 +121,17 @@ chrome.alarms.onAlarm.addListener(async () => {
       period: nextPeriod,
     });
     if (nextPeriod === "work") {
-      createAlarm(results.work * 60 * 1000 + Date.now(), "work");
+      const when = minsToEpochMs(results.work);
+      createAlarm(when, "work");
     }
     if (nextPeriod === "rest") {
-      createAlarm(results.rest * 60 * 1000 + Date.now(), "rest");
+      const when = minsToEpochMs(results.rest);
+      createAlarm(when, "rest");
     }
 
     updateBadge();
   } catch (e) {
-    console.debug("error in onAlarm handler", e);
+    console.error("error in onAlarm handler", e);
   }
 });
 
@@ -152,10 +155,12 @@ chrome.runtime.onMessage.addListener(async (message, _sender, sendResponse) => {
         ]);
         const period = results.period || "work";
         if (period === "work") {
-          createAlarm(results.work * 60 * 1000 + Date.now(), "work");
+          const when = minsToEpochMs(results.work);
+          createAlarm(when, "work");
         }
         if (period === "rest") {
-          createAlarm(results.rest * 60 * 1000 + Date.now(), "rest");
+          const when = minsToEpochMs(results.rest);
+          createAlarm(when, "rest");
         }
         await chrome.storage.local.set({ running: false });
         sendResponse("alarm reset");
@@ -168,8 +173,8 @@ chrome.runtime.onMessage.addListener(async (message, _sender, sendResponse) => {
           "work",
           "rest",
         ]);
-        // storage is empty - this really only happens if you clear chromes storage
-        // from the console but jic it happens, we will handle this scenario
+        // storage is empty - this really only happens if you clear chrome's storage
+        // from the console but just in case it happens, we will handle this scenario
         if (Object.keys.length === 0) {
           await chrome.storage.local.set({
             period: "work",
@@ -190,10 +195,12 @@ chrome.runtime.onMessage.addListener(async (message, _sender, sendResponse) => {
           createAlarm(results.scheduledAlarm, period);
         } else {
           if (period === "work") {
-            createAlarm(results.work * 60 * 1000 + Date.now(), "work");
+            const when = minsToEpochMs(results.work);
+            createAlarm(when, "work");
           }
           if (period === "rest") {
-            createAlarm(results.rest * 60 * 1000 + Date.now(), "rest");
+            const when = minsToEpochMs(results.rest);
+            createAlarm(when, "rest");
           }
         }
         sendResponse("alarm started");
@@ -207,14 +214,11 @@ chrome.runtime.onMessage.addListener(async (message, _sender, sendResponse) => {
         await chrome.storage.local.set({
           rest: message.data,
         });
-        const results = await chrome.storage.local.get([
-          "period",
-          "running",
-          "rest",
-        ]);
-        if (results.period === "rest" && results.running) {
+        const results = await chrome.storage.local.get(["period", "rest"]);
+        if (results.period === "rest") {
           clearAlarms();
-          createAlarm(results.rest * 60 * 1000 + Date.now(), "rest");
+          const when = minsToEpochMs(results.rest);
+          createAlarm(when, "rest");
         }
         sendResponse(results.rest);
         break;
@@ -223,15 +227,11 @@ chrome.runtime.onMessage.addListener(async (message, _sender, sendResponse) => {
         await chrome.storage.local.set({
           work: message.data,
         });
-        const results = await chrome.storage.local.get([
-          "period",
-          "running",
-          "work",
-        ]);
-
+        const results = await chrome.storage.local.get(["period", "work"]);
         if (results.period === "work") {
           clearAlarms();
-          createAlarm(results.work * 60 * 1000 + Date.now(), "work");
+          const when = minsToEpochMs(results.work);
+          createAlarm(when, "work");
         }
         updateBadge();
         sendResponse(results.work);
@@ -251,10 +251,12 @@ chrome.runtime.onMessage.addListener(async (message, _sender, sendResponse) => {
           period: nextPeriod,
         });
         if (nextPeriod === "work") {
-          createAlarm(results.work * 60 * 1000 + Date.now(), "work");
+          const when = minsToEpochMs(results.work);
+          createAlarm(when, "work");
         }
         if (nextPeriod === "rest") {
-          createAlarm(results.rest * 60 * 1000 + Date.now(), "rest");
+          const when = minsToEpochMs(results.rest);
+          createAlarm(when, "rest");
         }
 
         updateBadge();
@@ -271,6 +273,6 @@ chrome.runtime.onMessage.addListener(async (message, _sender, sendResponse) => {
       }
     }
   } catch (e) {
-    console.debug("error in onMessage handler", e);
+    console.error("error in onMessage handler", e);
   }
 });

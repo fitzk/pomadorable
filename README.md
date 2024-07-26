@@ -2,27 +2,37 @@
 
 A simple Pomodoro timer Chrome Extension.
 
-- configurable rest and work intervals, (does not support long rests after x pomodoros)
-- dark and light theme support
-- operations: reset current interval, skip, and start timer
-- to stop the extension close the popup using the x icon in the top right corner
-- toolbar badge updates when intervals change
-- timers persist when browser extension is minimized and / or popup is minimized
+## Features
+
+- Configurable rest and work intervals, (does not support [long rests][wiki](https://todoist.com/productivity-methods/pomodoro-technique)])
+- Dark and light themes
+- Timers that persist when browser is closed, continuing upon reopening browser
+- Toolbar badge that updates when intervals change
+
+## Usage
+
+- buttons for resetting, starting, and skipping intervals
+- x icon stops the timer and closes the popup
+- - icon minimizes popup
 
 ## Scripts
 
-- Build for production: `npm run build`
-- Lint: `npm run lint`
-- Format (prettier): `npm run format`
+- `npm run build`: Build for production
+- `npm run lint`: Lint
+- `npm run format`: Format (prettier)
 
 ## Run Extension in Browser
 
-Build extension
-`npm run build`
+Install deps & build the extension
 
-Open Chrome and follow these instructions loading unpacked extensions: https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked
+```shell
+npm run install
+npm run build
+```
 
-Don't forget to pin the extension once it's loaded!
+Then, open Chrome and follow these instructions for loading unpacked extensions: https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked
+
+**NOTE:** Pin the extension once it's loaded so you can open the popup and see the badge updates
 
 ## Main Files
 
@@ -47,14 +57,18 @@ Don't forget to pin the extension once it's loaded!
 
 This extension was tested manually but automated tests are necessary for deployment and further development. For unit tests I like to use Jest and React Testing Library and for e2e tests I use Cypress (but I need to re-evaluate in light of current testing library trends).
 
-### Icons for Chrome Web Store
-
-I only included one logo icon sized 128x128 for illustration purposes, but more sizes are required for publishing.
-
 ### Notifications
 
 I would like to add a notification or sound to inform the user when the interval has completed when the popup is closed. For now the current interval is always shown on the toolbar badge but more can be done for better UX.
 
 ### Component Library
 
-Irl it would be best to use a community developed component library like NextUI or MUI to ensure code quality, great UX, and accessability.
+It would be best to use a community developed component library like NextUI or MUI to ensure code quality, great UX, and accessability.
+
+### Icons for Chrome Web Store
+
+I only included one logo icon sized 128x128 for illustration purposes, but more sizes are required for publishing.
+
+### No Pause Button
+
+I would like to add a button to pause the current interval in the future.
