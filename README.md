@@ -4,7 +4,7 @@ A simple Pomodoro timer Chrome Extension.
 
 ## Features
 
-- Configurable rest and work intervals, (does not support [long rests][wiki](https://todoist.com/productivity-methods/pomodoro-technique)])
+- Configurable rest and work intervals, (does not support [long rests](https://todoist.com/productivity-methods/pomodoro-technique))
 - Dark and light themes
 - Timers that persist when browser is closed, continuing upon reopening browser
 - Toolbar badge that updates when intervals change
