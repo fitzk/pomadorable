@@ -7,6 +7,7 @@ A simple Pomodoro timer Chrome Extension.
 - operations: reset current interval, skip, and start timer
 - to stop the extension close the popup using the x icon in the top right corner
 - toolbar badge updates when intervals change
+- timers persist when browser extension is minimized and / or popup is minimized
 
 ## Scripts
 
@@ -50,7 +51,7 @@ This extension was tested manually but automated tests are necessary for deploym
 
 I only included one logo icon sized 128x128 for illustration purposes, but more sizes are required for publishing.
 
-### Notification
+### Notifications
 
 I would like to add a notification or sound to inform the user when the interval has completed when the popup is closed. For now the current interval is always shown on the toolbar badge but more can be done for better UX.
 
