@@ -2,7 +2,7 @@
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   darkMode: "selector",
-  plugins: [],
+  plugins: [require("tailwindcss-animated")],
   theme: {
     container: {
       center: true,

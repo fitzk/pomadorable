@@ -6,13 +6,21 @@
     "service_worker": "src/background/index.ts",
     "type": "module"
   },
-  "description": "Pomadoroble",
+  "description": "pomadorable",
   "icons": {
     "128": "src/_assets/icon128.png"
   },
   "manifest_version": 3,
-  "name": "Yo Pomodoro",
-  "permissions": ["scripting", "activeTab", "notifications", "storage", "alarms"],
+  "name": "pomadorable",
+  "permissions": [
+    "scripting",
+    "activeTab",
+    "notifications",
+    "storage",
+    "alarms"
+  ],
   "version": "1.0",
-  "web_accessible_resources": [{ "matches": ["<all_urls>"], "resources": ["src/_assets/*"] }]
+  "web_accessible_resources": [
+    { "matches": ["<all_urls>"], "resources": ["src/_assets/*"] }
+  ]
 }
