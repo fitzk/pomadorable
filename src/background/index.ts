@@ -173,23 +173,6 @@ chrome.runtime.onMessage.addListener(async (message, _sender, sendResponse) => {
           "work",
           "rest",
         ]);
-        // storage is empty - this really only happens if you clear chrome's storage
-        // from the console but just in case it happens, we will handle this scenario
-        if (Object.keys.length === 0) {
-          await chrome.storage.local.set({
-            period: "work",
-            rest: REST_DEFAULT,
-            running: false,
-            work: WORK_DEFAULT,
-          });
-          // update results
-          results = await chrome.storage.local.get([
-            "scheduledAlarm",
-            "period",
-            "work",
-            "rest",
-          ]);
-        }
         const period = results.period || "work";
         if (results.scheduledAlarm) {
           createAlarm(results.scheduledAlarm, period);
